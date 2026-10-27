@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>강의실 예약</title>
+<!-- 예약 규칙은 이 파일에 없습니다. 같은 폴더의 solution.py를 브라우저 안의 파이썬(Pyodide)으로 그대로 불러 씁니다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<style>
+  :root {
+    --bg: #fbf7f2; --card: #ffffff; --ink: #3d3a36; --soft: #8a847c; --line: #efe7dc;
+    --accent: #f2a65a; --accent-dark: #d9853b; --mint: #e6f6ee; --mint-ink: #2f8a5b;
+    --rose: #fdebec; --rose-ink: #d64550; --field: #faf6f0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 48px; background: var(--bg); color: var(--ink);
+    font-family: Pretendard, system-ui, -apple-system, "Malgun Gothic", sans-serif; line-height: 1.5;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 28px; }
+  header .emoji { font-size: 2.6rem; }
+  h1 { margin: 6px 0 4px; font-size: 1.7rem; font-weight: 700; }
+  header p { margin: 0; color: var(--soft); }
+  .status {
+    margin: 14px auto 0; padding: 8px 16px; width: fit-content; border-radius: 999px;
+    font-size: 0.9rem; background: #f1ebe3; color: var(--soft);
+  }
+  .status.ready { background: var(--mint); color: var(--mint-ink); }
+  .status.error { background: var(--rose); color: var(--rose-ink); }
+  section {
+    background: var(--card); border-radius: 22px; padding: 22px 20px 20px; margin-bottom: 20px;
+    box-shadow: 0 6px 24px rgba(160, 130, 90, 0.10);
+  }
+  h2 { margin: 0 0 14px; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 0.88rem; color: var(--soft); }
+  .field { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  input, select {
+    width: 100%; font: inherit; font-size: 1rem; color: var(--ink);
+    padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--field);
+    transition: border-color .15s, background .15s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .unit { color: var(--soft); white-space: nowrap; }
+  .hint {
+    margin: 14px 0 0; padding: 10px 14px; font-size: 0.88rem; color: var(--soft);
+    background: var(--field); border-radius: 12px;
+  }
+  button {
+    width: 100%; margin-top: 16px; padding: 13px; font: inherit; font-size: 1.05rem; font-weight: 600;
+    color: #fff; background: var(--accent); border: none; border-radius: 16px; cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  button:hover { background: var(--accent-dark); }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  button.ghost { background: #f1ebe3; color: var(--ink); }
+  button.ghost:hover { background: #e8dfd3; }
+  .result {
+    display: none; margin-top: 16px; padding: 16px; border-radius: 18px; text-align: center;
+    font-size: 2.4rem; font-weight: 800; animation: pop .25s ease-out;
+  }
+  .ok { display: block; background: var(--mint); color: var(--mint-ink); }
+  .fail { display: block; background: var(--rose); color: var(--rose-ink); }
+  @keyframes pop { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .list { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; background: var(--field); border-radius: 14px;
+  }
+  .item .time { font-weight: 600; }
+  .item .who { color: var(--soft); }
+  .empty { margin-top: 16px; text-align: center; color: var(--soft); padding: 14px; }
+  @media (max-width: 420px) { .grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<div class="wrap">
+<header>
+  <div class="emoji">🏫</div>
+  <h1>강의실 예약</h1>
+  <p>원하는 강의실과 시간을 골라 편하게 예약하세요</p>
+  <div class="status" id="status">⏳ 예약 프로그램을 불러오는 중이에요… (처음엔 몇 초 걸려요)</div>
+</header>
+
+<datalist id="rooms"><option>A101</option><option>A102</option><option>B201</option></datalist>
+<datalist id="days"><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option></datalist>
+
+<section>
+  <h2>📅 예약하기</h2>
+  <form id="book">
+    <div class="grid">
+      <label>강의실<div class="field"><input name="room" value="A101" list="rooms"></div></label>
+      <label>요일<div class="field"><input name="day" value="월" list="days"></div></label>
+      <label>몇 시부터<div class="field"><input name="start" value="10" placeholder="예: 10" inputmode="numeric"><span class="unit">시</span></div></label>
+      <label>몇 시까지<div class="field"><input name="end" value="12" placeholder="예: 12" inputmode="numeric"><span class="unit">시</span></div></label>
+      <label class="full">이름<div class="field"><input name="name" placeholder="예: 김민수"></div></label>
+    </div>
+    <p class="hint">💡 10시부터 12시까지 → 10:00~12:00 사용이에요. 숫자만 넣어 주세요.<br>이용 가능 시간은 9시~21시, 한 번에 최대 3시간이에요.</p>
+    <button disabled>예약하기</button>
+  </form>
+  <div class="result" id="book-result"></div>
+</section>
+
+<section>
+  <h2>↩️ 취소하기</h2>
+  <form id="cancel">
+    <div class="grid">
+      <label>강의실<div class="field"><input name="room" value="A101" list="rooms"></div></label>
+      <label>요일<div class="field"><input name="day" value="월" list="days"></div></label>
+      <label>예약 시작 시각<div class="field"><input name="start" value="10" placeholder="예: 10" inputmode="numeric"><span class="unit">시</span></div></label>
+      <label>예약한 사람 이름<div class="field"><input name="name" placeholder="예: 김민수"></div></label>
+    </div>
+    <p class="hint">💡 취소할 예약이 몇 시에 시작하는지와 예약한 본인 이름을 넣어 주세요.</p>
+    <button class="ghost" disabled>예약 취소하기</button>
+  </form>
+  <div class="result" id="cancel-result"></div>
+</section>
+
+<section>
+  <h2>🗓️ 시간표 보기</h2>
+  <form id="schedule">
+    <div class="grid">
+      <label>강의실<div class="field"><select name="room"><option>A101</option><option>A102</option><option>B201</option></select></div></label>
+      <label>요일<div class="field"><select name="day"><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option></select></div></label>
+    </div>
+    <button class="ghost" disabled>시간표 보기</button>
+  </form>
+  <div id="schedule-result"></div>
+</section>
+</div>
+
+<script>
+// 화면 입력을 solution.py의 RoomBooking에 그대로 넘기는 연결 코드 (규칙 판단은 하지 않음)
+const GLUE = `
+import re, json
+from solution import RoomBooking
+
+rb = RoomBooking()  # 페이지가 열려 있는 동안 예약을 기억
+
+def to_number(text):
+    text = str(text).strip()
+    if re.fullmatch(r"-?\\d+", text):
+        return int(text)
+    try:
+        return float(text)
+    except ValueError:
+        return text
+
+def api_book(room, day, start, end, name):
+    return rb.book(room, day, to_number(start), to_number(end), name) is True
+
+def api_cancel(room, day, start, name):
+    return rb.cancel(room, day, to_number(start), name) is True
+
+def api_schedule(room, day):
+    return json.dumps([list(b) for b in rb.get_schedule(room, day)], ensure_ascii=False)
+`;
+
+let api = null;
+
+async function start() {
+  const status = document.getElementById("status");
+  try {
+    const py = await loadPyodide();
+    const res = await fetch("solution.py", { cache: "no-store" });
+    if (!res.ok) throw new Error("solution.py 파일을 찾지 못했어요. index.html과 같은 곳에 올려 주세요.");
+    py.FS.writeFile("/home/pyodide/solution.py", await res.text());
+    py.runPython("import sys; sys.path.insert(0, '/home/pyodide')");
+    py.runPython(GLUE);
+    api = {
+      book: py.globals.get("api_book"),
+      cancel: py.globals.get("api_cancel"),
+      schedule: py.globals.get("api_schedule"),
+    };
+    document.querySelectorAll("button").forEach(b => b.disabled = false);
+    status.className = "status ready";
+    status.textContent = "✅ 준비됐어요! 예약을 시작해 보세요";
+  } catch (err) {
+    status.className = "status error";
+    status.textContent = "⚠️ 불러오기 실패: " + err.message;
+    console.error(err);
+  }
+}
+
+function values(form) { return Object.fromEntries(new FormData(form)); }
+function show(id, ok) {
+  const el = document.getElementById(id);
+  el.className = "result";
+  void el.offsetWidth;  // 같은 결과가 연달아 나와도 애니메이션이 다시 보이게
+  el.className = "result " + (ok ? "ok" : "fail");
+  el.textContent = ok ? "성공" : "실패";
+}
+function safely(fn) {
+  try { return fn(); } catch (err) { console.error(err); return false; }
+}
+
+document.getElementById("book").onsubmit = e => {
+  e.preventDefault();
+  const v = values(e.target);
+  show("book-result", safely(() => api.book(v.room, v.day, v.start, v.end, v.name)));
+};
+document.getElementById("cancel").onsubmit = e => {
+  e.preventDefault();
+  const v = values(e.target);
+  show("cancel-result", safely(() => api.cancel(v.room, v.day, v.start, v.name)));
+};
+document.getElementById("schedule").onsubmit = e => {
+  e.preventDefault();
+  const v = values(e.target);
+  const schedule = JSON.parse(api.schedule(v.room, v.day));
+  const box = document.getElementById("schedule-result");
+  box.innerHTML = "";
+  if (!schedule.length) { box.innerHTML = '<p class="empty">아직 예약이 없어요 🌱</p>'; return; }
+  const list = document.createElement("div");
+  list.className = "list";
+  for (const [s, en, n] of schedule) {
+    const row = document.createElement("div");
+    row.className = "item";
+    const time = document.createElement("span");
+    time.className = "time"; time.textContent = `${s}시 ~ ${en}시`;
+    const who = document.createElement("span");
+    who.className = "who"; who.textContent = n;
+    row.append(time, who);
+    list.append(row);
+  }
+  box.append(list);
+};
+
+start();
+</script>
+</body></html>
