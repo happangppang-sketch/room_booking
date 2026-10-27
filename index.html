@@ -82,15 +82,12 @@
   <div class="status" id="status">⏳ 예약 프로그램을 불러오는 중이에요… (처음엔 몇 초 걸려요)</div>
 </header>
 
-<datalist id="rooms"><option>A101</option><option>A102</option><option>B201</option></datalist>
-<datalist id="days"><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option></datalist>
-
 <section>
   <h2>📅 예약하기</h2>
   <form id="book">
     <div class="grid">
-      <label>강의실<div class="field"><input name="room" value="A101" list="rooms"></div></label>
-      <label>요일<div class="field"><input name="day" value="월" list="days"></div></label>
+      <label>강의실<div class="field"><select name="room"><option>A101</option><option>A102</option><option>B201</option></select></div></label>
+      <label>요일<div class="field"><select name="day"><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option><option>일</option></select></div></label>
       <label>몇 시부터<div class="field"><input name="start" value="10" placeholder="예: 10" inputmode="numeric"><span class="unit">시</span></div></label>
       <label>몇 시까지<div class="field"><input name="end" value="12" placeholder="예: 12" inputmode="numeric"><span class="unit">시</span></div></label>
       <label class="full">이름<div class="field"><input name="name" placeholder="예: 김민수"></div></label>
@@ -105,8 +102,8 @@
   <h2>↩️ 취소하기</h2>
   <form id="cancel">
     <div class="grid">
-      <label>강의실<div class="field"><input name="room" value="A101" list="rooms"></div></label>
-      <label>요일<div class="field"><input name="day" value="월" list="days"></div></label>
+      <label>강의실<div class="field"><select name="room"><option>A101</option><option>A102</option><option>B201</option></select></div></label>
+      <label>요일<div class="field"><select name="day"><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option><option>일</option></select></div></label>
       <label>예약 시작 시각<div class="field"><input name="start" value="10" placeholder="예: 10" inputmode="numeric"><span class="unit">시</span></div></label>
       <label>예약한 사람 이름<div class="field"><input name="name" placeholder="예: 김민수"></div></label>
     </div>
